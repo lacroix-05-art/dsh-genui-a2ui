@@ -397,17 +397,12 @@ export function apply(ctx: Context, config: ClientConfig = {}): void {
             inject: (sessionId: string) => ({
               sessionId,
               chatStore: resolveChatStore(host, sessionId),
-              syncHostEnabled: (enabled: boolean) =>
-                executeSessionCommand(
-                  host,
-                  sessionId,
-                  `/${TIER_COMMAND} ${enabled ? 'on' : 'off'}`,
-                ),
+              noticeOnly: true,
             }),
           },
           A2uiTierControl,
         ),
       ),
-    'dsh-genui-a2ui: tier control',
+    'dsh-genui-a2ui: command notices',
   )
 }

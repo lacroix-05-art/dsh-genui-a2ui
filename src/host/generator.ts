@@ -436,6 +436,11 @@ export class SurfaceSessions {
     this.defaultEnabled = enabled
   }
 
+  setAllEnabled(enabled: boolean): void {
+    this.enabledBySession.clear()
+    this.defaultEnabled = enabled
+  }
+
   private recordRedactionMessages(
     sessionId: string,
     messages: readonly AgentToRendererMessage[],

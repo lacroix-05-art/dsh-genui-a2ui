@@ -17,6 +17,30 @@ export { ANSWER_COMMAND, DOMAIN_SKILL_META, SKILL_DOMAINS, TIER_COMMAND }
 export const name = 'dsh-genui-a2ui'
 export const inject: string[] = []
 
+interface ToolSwitchesService {
+  register(contribution: {
+    readonly id: string
+    readonly label: string
+    readonly order?: number
+    readonly switches: readonly {
+      readonly id: string
+      readonly label: string
+      readonly detail?: string
+      readonly snapshot: () => {
+        readonly on: boolean
+        readonly busy?: boolean
+        readonly phase?: string
+        readonly message?: string
+        readonly alert?: boolean
+      }
+      readonly set: (on: boolean) => void | Promise<void>
+    }[]
+    readonly guide?: (
+      views: readonly { readonly label: string; readonly detail: string; readonly on: boolean }[],
+    ) => readonly string[]
+  }): () => void
+}
+
 export interface Config {
   readonly defaultEnabled?: boolean | undefined
   readonly stateFile?: string | null | undefined
@@ -354,6 +378,52 @@ export function apply(ctx: Context, config: Config = {}): void {
   const isEnabledForStep = ({ agent }: { agent?: ToolExec['agent'] }) =>
     !isSubagentCall({ agent }) && sessions.isEnabled(sessionIdOf({ agent }))
 
+  let syncSkillCatalog: () => void = () => {}
+
+  const toolSwitchSnapshot = () => ({
+    on: sessions.getDefaultEnabled(),
+    busy: false,
+    phase: sessions.getDefaultEnabled() ? 'on' : 'off',
+    alert: false,
+  })
+
+  ctx.inject(['toolSwitches'], (menuCtx) => {
+    const menu = (
+      menuCtx as unknown as {
+        get?: (name: string) => ToolSwitchesService | undefined
+      }
+    ).get?.('toolSwitches')
+    if (!menu || typeof menu.register !== 'function') return
+    menuCtx.effect(
+      () =>
+        menu.register({
+          id: 'a2ui',
+          label: 'A2UI',
+          order: 40,
+          switches: [
+            {
+              id: 'a2ui',
+              label: 'A2UI',
+              detail: 'A2UI · a2ui_render, a2ui_ask',
+              snapshot: toolSwitchSnapshot,
+              set: (on) => {
+                sessions.setAllEnabled(on === true)
+                syncSkillCatalog()
+                writePersistedEnabled(stateFile, on === true)
+              },
+            },
+          ],
+          guide: (views) =>
+            views.map((view) =>
+              view.on
+                ? `- ${view.label} — ${view.detail} — ON`
+                : `- ${view.label} — ${view.detail} — OFF: those tools are NOT in your tool set.`,
+            ),
+        }),
+      'dsh-genui-a2ui: Tool menu switch',
+    )
+  })
+
   ctx.inject(['tools'], (toolsCtx) => {
     const tools = (toolsCtx as unknown as { tools: ToolsService }).tools
     toolsCtx.effect(
@@ -429,8 +499,6 @@ export function apply(ctx: Context, config: Config = {}): void {
     }
     return sessions.getDefaultEnabled()
   }
-
-  let syncSkillCatalog: () => void = () => {}
 
   ctx.inject(['skills'], (skillCtx) => {
     const skills = (skillCtx as unknown as { skills: SkillsService }).skills

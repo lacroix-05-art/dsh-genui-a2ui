@@ -21,6 +21,7 @@ export interface A2uiTierControlProps {
   readonly sessionId?: string | undefined
   readonly chatStore?: ChatExternalStore | undefined
   readonly syncHostEnabled?: ((enabled: boolean) => Promise<boolean>) | undefined
+  readonly noticeOnly?: boolean
 }
 
 const NOOP_UNSUBSCRIBE = () => {}
@@ -31,6 +32,7 @@ export const A2uiTierControl = memo(function A2uiTierControl({
   sessionId,
   chatStore,
   syncHostEnabled,
+  noticeOnly = false,
 }: A2uiTierControlProps) {
   const [busyBySession, setBusyBySession] = useState<Readonly<Record<string, number>>>({})
   const reqSeqBySessionRef = useRef<Map<string, number>>(new Map())
@@ -125,23 +127,25 @@ export const A2uiTierControl = memo(function A2uiTierControl({
 
   return (
     <>
-      <DshTooltip label={tooltip}>
-        <button
-          type="button"
-          className={triggerClass}
-          aria-label={tooltip}
-          aria-pressed={enabled}
-          disabled={busy}
-          data-a2ui-toggle=""
-          data-enabled={enabled ? 'true' : 'false'}
-          onClick={handleToggle}
-        >
-          <span className={css.triggerIcon} aria-hidden="true">
-            {APPS_ICON_14}
-          </span>
-          <span className={css.triggerLabel}>A2UI</span>
-        </button>
-      </DshTooltip>
+      {!noticeOnly && (
+        <DshTooltip label={tooltip}>
+          <button
+            type="button"
+            className={triggerClass}
+            aria-label={tooltip}
+            aria-pressed={enabled}
+            disabled={busy}
+            data-a2ui-toggle=""
+            data-enabled={enabled ? 'true' : 'false'}
+            onClick={handleToggle}
+          >
+            <span className={css.triggerIcon} aria-hidden="true">
+              {APPS_ICON_14}
+            </span>
+            <span className={css.triggerLabel}>A2UI</span>
+          </button>
+        </DshTooltip>
+      )}
       {visibleNotice !== null ? (
         <DshToast
           key={visibleNotice.seq}

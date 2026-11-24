@@ -65,6 +65,7 @@ describe('Issue 1 & Issue 2 regression suite: dynamic skill unregistration and b
 
   it('dynamically unregisters and re-registers the a2ui skill via skills.registerProvider on /a2ui off|on, subagents, and cold off boot', async () => {
     let invalidateCount = 0
+    let menuSwitch: { snapshot: () => { on: boolean }; set: (on: boolean) => void } | undefined
     let registeredProvider:
       | {
           readonly name: string
@@ -93,6 +94,15 @@ describe('Issue 1 & Issue 2 regression suite: dynamic skill unregistration and b
     const fakeHostCtx = {
       inject(_deps: string[], fn: (c: unknown) => void) {
         fn({
+          get: (name: string) =>
+            name === 'toolSwitches'
+              ? {
+                  register: (group: { switches: Array<NonNullable<typeof menuSwitch>> }) => {
+                    menuSwitch = group.switches[0]
+                    return () => {}
+                  },
+                }
+              : undefined,
           tools: {
             register: (
               def: { name: string },
@@ -155,6 +165,16 @@ describe('Issue 1 & Issue 2 regression suite: dynamic skill unregistration and b
     const agentB = { session: { id: 'sess-b' } }
     const agentC = { session: { id: 'sess-c' } }
     const subAgent = { session: { id: 'sess-sub', header: { parentSession: 'sess-a' } } }
+
+    expect(menuSwitch?.snapshot().on).toBe(true)
+    tierCommandDef!.handler({ agent: agentA, rawInput: 'on' })
+    menuSwitch!.set(false)
+    expect(menuSwitch!.snapshot().on).toBe(false)
+    expect(renderWhen!({ agent: agentA })).toBe(false)
+    expect(renderWhen!({ agent: agentB })).toBe(false)
+    menuSwitch!.set(true)
+    expect(renderWhen!({ agent: agentA })).toBe(true)
+    expect(renderWhen!({ agent: agentB })).toBe(true)
 
     const initialList = await registeredProvider!.list({ cwd: '/repo', scope: agentA })
     expect(initialList).toHaveLength(DOMAIN_SKILL_NAMES.length)
@@ -430,7 +450,7 @@ describe('Issue 1 & Issue 2 regression suite: dynamic skill unregistration and b
     const blankHtml = renderToStaticMarkup(
       createElement(TierComponent, tierSlotRegistration!.inject('sess-blank')),
     )
-    expect(blankHtml).toContain('data-enabled="false"')
+    expect(blankHtml).not.toContain('data-a2ui-toggle')
     expect(blankHtml).toContain('data-a2ui-toast="success"')
     expect(blankHtml).toContain('A2UI 生成式界面已关闭')
 
